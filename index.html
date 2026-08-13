@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<link rel="manifest" href="manifest.json">
+<title>LiftRank</title>
+<style>
+:root{--bg:#0b0d12;--card:#151923;--card2:#1c2230;--text:#f5f7fb;--muted:#929aaa;--line:#292f3d;--accent:#8b7cff;--green:#4fda91}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+.app{max-width:620px;margin:auto;min-height:100vh;padding-bottom:90px}
+header{padding:22px 18px 10px;display:flex;justify-content:space-between}.logo{font-weight:900;letter-spacing:2px}.logo span{color:var(--accent)}
+.screen{display:none;padding:12px 18px}.screen.active{display:block}
+h1{font-size:30px;margin:8px 0}.muted{color:var(--muted);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px}
+.hero{padding:20px;border-radius:22px;background:linear-gradient(145deg,#20263a,#131720);border:1px solid var(--line);margin-top:16px}
+.label{text-transform:uppercase;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:1px}
+.rank{font-size:28px;font-weight:900;margin:7px 0}.icons{font-size:26px;letter-spacing:3px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.value{font-size:23px;font-weight:900;margin-top:5px}
+input,select{width:100%;background:var(--card);color:white;border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:6px}
+button{font:inherit;cursor:pointer}.primary{width:100%;border:0;background:var(--accent);color:white;border-radius:13px;padding:13px;font-weight:900;margin-top:12px}.secondary{width:100%;border:0;background:var(--card2);color:white;border-radius:13px;padding:12px;font-weight:800;margin-top:9px}
+.field{margin-top:12px}.exercise{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px;margin-top:9px;display:flex;justify-content:space-between;gap:10px}
+.badge{background:var(--card2);border-radius:10px;padding:8px;font-weight:900;white-space:nowrap}
+.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(620px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:#10131bf5;border-top:1px solid var(--line);padding:8px}
+.bottom button{background:none;border:0;color:var(--muted);font-size:11px}.bottom button.active{color:white}.navicon{display:block;font-size:20px}
+.modal{display:none;position:fixed;inset:0;background:#000b;align-items:flex-end}.modal.show{display:flex}.modalbox{background:var(--card);width:min(620px,100%);border-radius:24px 24px 0 0;padding:22px}
+.notice{background:#2a2435;border:1px solid #4a3f5e;border-radius:14px;padding:12px;margin-top:12px;font-size:12px;line-height:1.5}
+.success{color:var(--green);font-weight:900}.small{font-size:12px}.table{width:100%;border-collapse:collapse;margin-top:10px}.table td,.table th{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">LIFT<span>RANK</span></div><div class="muted" id="level">LVL 1</div></header>
+
+<section id="home" class="screen active">
+<h1>Your Strength</h1><div class="muted">Track it. Rank it. Improve it.</div>
+<div class="hero">
+<div class="label">Overall Rank</div><div class="rank" id="overallRank">Add a ranked exercise</div>
+<div class="icons" id="overallIcons"></div>
+<div class="muted" id="overallPct">No overall percentile yet</div>
+<button class="primary" onclick="show('workout')">＋ Start Workout</button>
+</div>
+<div class="grid">
+<div class="card"><div class="label">Workouts</div><div class="value" id="workouts">0</div></div>
+<div class="card"><div class="label">PRs</div><div class="value" id="prs">0</div></div>
+<div class="card"><div class="label">Sets</div><div class="value" id="sets">0</div></div>
+<div class="card"><div class="label">XP</div><div class="value" id="xp">0</div></div>
+</div>
+<div class="card">
+<div class="label">Ranking engine · Local Beta</div>
+<p class="small">Beta: Bench Press, Squat, Deadlift and Overhead Press. Enter a 1RM or a hard rep set; reps are converted to an estimated 1RM.</p>
+<div class="notice">These benchmarks are for trained lifters and are <b>not</b> a global-population percentile. The production engine should replace this beta with a full empirical dataset.</div>
+</div>
+</section>
+
+<section id="workout" class="screen">
+<h1>Workout</h1><div class="muted">Log what you actually did.</div>
+<div class="field"><label>Search exercise</label><input id="search" oninput="searchExercises()" placeholder="bench, squat, curl..."></div>
+<div id="results"></div>
+<div class="card"><div class="label">Today's Workout</div><div id="today"></div><button class="primary" onclick="finishWorkout()">Finish Workout</button></div>
+</section>
+
+<section id="ranks" class="screen">
+<h1>Ranks</h1><div class="muted">Rank individual exercises separately from workouts.</div>
+<div class="card">
+<div class="field"><label>Exercise</label><select id="rankExercise"></select></div>
+<div class="field"><label>Input type</label><select id="inputType" onchange="toggleRepInput()"><option value="1rm">1 Rep Max</option><option value="reps">Weight + Reps</option></select></div>
+<div class="grid">
+<div class="field"><label>Weight (lb)</label><input id="rankWeight" type="number" placeholder="225"></div>
+<div class="field" id="repField" style="display:none"><label>Reps</label><input id="rankReps" type="number" min="1" max="30" placeholder="8"></div>
+</div>
+<div class="field"><label>Bodyweight (lb)</label><input id="bodyweight" type="number" placeholder="160"></div>
+<div class="field"><label>Benchmark category</label><select id="sex"><option value="male">Male</option><option value="female">Female</option></select></div>
+<button class="primary" onclick="addRank()">Calculate Rank</button>
+</div>
+<div id="rankList"></div>
+</section>
+
+<section id="profile" class="screen">
+<h1>Profile</h1><div class="muted">Your LiftRank profile.</div>
+<div class="hero"><div class="label">Overall</div><div class="rank" id="profileRank">—</div><div class="icons" id="profileIcons"></div><div class="muted" id="profilePct">—</div></div>
+<div class="grid">
+<div class="card"><div class="label">Level</div><div class="value" id="profileLevel">1</div></div>
+<div class="card"><div class="label">XP</div><div class="value" id="profileXP">0</div></div>
+</div>
+<div class="card"><div class="label">Personal Records</div><div id="profilePRs"></div></div>
+<div class="card"><div class="label">Achievements</div><div class="exercise">🏁 First Workout</div><div class="exercise">🏆 First PR</div><div class="exercise">🔥 10 Workouts</div></div>
+</section>
+
+<nav class="bottom">
+<button data-s="home" class="active" onclick="show('home')"><span class="navicon">⌂</span>Home</button>
+<button data-s="workout" onclick="show('workout')"><span class="navicon">＋</span>Workout</button>
+<button data-s="ranks" onclick="show('ranks')"><span class="navicon">♜</span>Ranks</button>
+<button data-s="profile" onclick="show('profile')"><span class="navicon">●</span>Profile</button>
+</nav>
+</div>
+
+<div id="modal" class="modal"><div class="modalbox"><h2 id="modalTitle"></h2><div id="modalText"></div><button class="primary" onclick="closeModal()">Continue</button></div></div>
+
+<script>
+const exercises=["Bench Press","Squat","Deadlift","Overhead Press","Incline Bench Press","Barbell Row","Pull-Up","Lat Pulldown","Leg Press","Leg Curl","Leg Extension","Bicep Curl","Hammer Curl","Tricep Pushdown","Lateral Raise"];
+const ranked=["Bench Press","Squat","Deadlift","Overhead Press"];
+const rankKey={"Bench Press":"bench_press","Squat":"squat","Deadlift":"deadlift","Overhead Press":"overhead_press"};
+const icons={Bronze:"🥉",Silver:"🥈",Gold:"🥇",Platinum:"💠",Diamond:"💎",Elite:"⚡",Legend:"🔥",Apex:"👑"};
+const ranks=["Bronze","Silver","Gold","Platinum","Diamond","Elite","Legend","Apex"];
+const divs=["I","II","III"];
+const DB="liftrank_v2";
+let data=JSON.parse(localStorage.getItem(DB)||'null')||{workouts:[],prs:{},rankings:{},xp:0,level:1,today:[]};
+const benchmarks={
+  "male":{
+    "bench_press":[53,74,98,127,157],
+    "squat":[72,98,130,166,205],
+    "deadlift":[86,116,151,192,235],
+    "overhead_press":[33,47,64,84,106]
+  },
+  "female":{
+    "bench_press":[24,39,59,82,109],
+    "squat":[39,59,85,115,148],
+    "deadlift":[48,71,99,132,168],
+    "overhead_press":[17,26,39,54,70]
+  },
+  "anchor_percentiles":[5,20,50,80,95],
+  "units":"kg",
+  "bodyweight_anchor_kg":80
+};
+
+init();
+
+function save(){localStorage.setItem(DB,JSON.stringify(data))}
+function show(id){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".bottom button").forEach(x=>x.classList.toggle("active",x.dataset.s===id));render()}
+function init(){const s=document.getElementById("rankExercise");s.innerHTML=ranked.map(x=>`<option>${x}</option>`).join("");render()}
+function searchExercises(){let q=document.getElementById("search").value.toLowerCase();document.getElementById("results").innerHTML= q ? exercises.filter(x=>x.toLowerCase().includes(q)).map(x=>`<div class="exercise" onclick="addExercise('${x}')"><span>${x}</span><span class="badge">＋</span></div>`).join(""):""}
+function addExercise(name){data.today.push({name,sets:[{w:"",r:""}]});save();document.getElementById("search").value="";document.getElementById("results").innerHTML="";render()}
+function addSet(i){data.today[i].sets.push({w:"",r:""});save();render()}
+function removeSet(i,j){data.today[i].sets.splice(j,1);save();render()}
+function updateSet(i,j,k,v){data.today[i].sets[j][k]=v;save()}
+function renderToday(){let c=document.getElementById("today");if(!data.today.length){c.innerHTML='<div class="muted" style="padding:15px 0">No exercises yet.</div>';return}
+c.innerHTML=data.today.map((e,i)=>`<div class="exercise" style="display:block"><b>${e.name}</b>${e.sets.map((s,j)=>`<div class="grid"><input type="number" placeholder="Weight" value="${s.w}" onchange="updateSet(${i},${j},'w',this.value)"><input type="number" placeholder="Reps" value="${s.r}" onchange="updateSet(${i},${j},'r',this.value)"></div><button class="secondary" onclick="removeSet(${i},${j})">Remove set</button>`).join("")}<button class="secondary" onclick="addSet(${i})">＋ Add Set</button></div>`).join("")}
+function e1rm(w,r){return r<=1?w:w*(1+r/30)}
+function finishWorkout(){let sets=0,vol=0,newPr=[];data.today.forEach(e=>e.sets.forEach(s=>{let w=+s.w,r=+s.r;if(w>0&&r>0){sets++;vol+=w*r;let v=e1rm(w,r);if(v>(data.prs[e.name]||0)){data.prs[e.name]=v;newPr.push([e.name,v])}}}));if(!sets){alert("Enter weight and reps for at least one set.");return}data.workouts.push({date:new Date().toISOString(),sets,volume:vol,exercises:data.today});data.xp+=sets*25+newPr.length*100;while(data.xp>=xpNeed()){data.xp-=xpNeed();data.level++}data.today=[];save();showModal(newPr.length?"🎉 New PR!":"Workout Complete!",newPr.length?newPr.map(x=>`<div class="exercise"><b>${x[0]}</b><span class="success">${Math.round(x[1])} lb est. 1RM</span></div>`).join(""):`${sets} sets logged · ${Math.round(vol).toLocaleString()} lb volume.`);render()}
+function xpNeed(){return Math.round(500*Math.pow(data.level,1.25))}
+function toggleRepInput(){document.getElementById("repField").style.display=document.getElementById("inputType").value==="reps"?"block":"none"}
+function pctFromBench(ex,sex,bwKg,weightKg){let arr=benchmarks[sex][rankKey[ex]];let scale=bwKg/benchmarks.bodyweight_anchor_kg;let vals=arr.map(v=>v*scale);let p=benchmarks.anchor_percentiles;if(weightKg<=vals[0])return Math.max(0,5*(weightKg/Math.max(vals[0],.001)));for(let i=0;i<vals.length-1;i++){if(weightKg<=vals[i+1]){let t=(weightKg-vals[i])/(vals[i+1]-vals[i]);return p[i]+t*(p[i+1]-p[i])}}return Math.min(99.9,95+(weightKg-vals[4])/(vals[4]*0.15)*4.9)}
+function rankFromPct(p){let bands=[10,20,30,40,50,60,70,80,85,90,92,94,95,96,97,98,99,99.5,99.8,99.9,99.95,99.99,99.995];let idx=0;for(let i=0;i<bands.length;i++){if(p>=bands[i])idx=i+1}idx=Math.min(idx,23);let ri=Math.floor(idx/3),di=idx%3;return {name:ranks[ri],div:divs[di],icons:icons[ranks[ri]].repeat(di+1)}}
+function addRank(){if(!benchmarks){alert("Benchmark data is still loading.");return}let ex=document.getElementById("rankExercise").value,sex=document.getElementById("sex").value,w=+document.getElementById("rankWeight").value,bw=+document.getElementById("bodyweight").value;if(!w||!bw){alert("Enter weight and bodyweight.");return}let r=+document.getElementById("rankReps").value;let est=document.getElementById("inputType").value==="reps"?e1rm(w,r):w;let pct=pctFromBench(ex,sex,bw/2.20462,est/2.20462);let rank=rankFromPct(pct);data.rankings[ex]={weight:w,bodyweight:bw,estimated1rm:est,pct,rank};save();showModal("Rank Calculated",`<div class="rank">${rank.name} ${rank.div}</div><div class="icons">${rank.icons}</div><p><b>${pct.toFixed(1)}th percentile</b> benchmark estimate</p><p class="muted">${ex}: ${Math.round(est)} lb estimated 1RM</p>`);render()}
+function overall(){let vals=Object.values(data.rankings).map(x=>x.pct);if(!vals.length)return null;let avg=vals.reduce((a,b)=>a+b,0)/vals.length;return {pct:avg,...rankFromPct(avg)}}
+function renderRanks(){let c=document.getElementById("rankList"), entries=Object.entries(data.rankings);c.innerHTML=entries.length?entries.map(([e,x])=>`<div class="exercise"><div><b>${e}</b><div class="muted">${Math.round(x.estimated1rm)} lb est. 1RM · ${x.pct.toFixed(1)}th percentile</div></div><span class="badge">${x.rank.name} ${x.rank.div}<br>${x.rank.icons}</span></div>`).join(""):'<div class="muted" style="padding:15px 0">No ranked exercises yet.</div>'}
+function render(){let o=overall();document.getElementById("workouts").textContent=data.workouts.length;document.getElementById("prs").textContent=Object.keys(data.prs).length;document.getElementById("sets").textContent=data.workouts.reduce((a,b)=>a+b.sets,0);document.getElementById("xp").textContent=data.xp;document.getElementById("level").textContent="LVL "+data.level;document.getElementById("overallRank").textContent=o?`${o.name} ${o.div}`:"Add a ranked exercise";document.getElementById("overallIcons").textContent=o?o.icons:"";document.getElementById("overallPct").textContent=o?`${o.pct.toFixed(1)}th percentile benchmark score`:"No overall percentile yet";document.getElementById("profileRank").textContent=o?`${o.name} ${o.div}`:"—";document.getElementById("profileIcons").textContent=o?o.icons:"";document.getElementById("profilePct").textContent=o?`${o.pct.toFixed(1)}th percentile benchmark score`:"—";document.getElementById("profileLevel").textContent=data.level;document.getElementById("profileXP").textContent=data.xp;document.getElementById("profilePRs").innerHTML=Object.entries(data.prs).map(([e,v])=>`<div class="exercise"><span>${e}</span><span class="badge">${Math.round(v)} lb</span></div>`).join("")||'<div class="muted" style="padding:12px 0">No PRs yet.</div>';renderToday();renderRanks()}
+function showModal(t,m){document.getElementById("modalTitle").textContent=t;document.getElementById("modalText").innerHTML=m;document.getElementById("modal").classList.add("show")}
+function closeModal(){document.getElementById("modal").classList.remove("show")}
+</script>
+</body></html>
